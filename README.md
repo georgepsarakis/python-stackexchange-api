@@ -1,4 +1,4 @@
-python-stackexchange-api
-========================
+Python wrapper for StackExchange API
+====================================
 
-Python wrapper for the StackExchange API. Includes a MySQL DB Interface, MySQL schema for storing data &amp; Sphinx configuration file.
+A Python library for easy access to the [StackExchange API](http://api.stackexchange.com/).
