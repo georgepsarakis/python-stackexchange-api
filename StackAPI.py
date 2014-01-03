@@ -54,6 +54,7 @@ class StackAPI(object):
     self.__PARAMS = {}
     self.IDS = []
     self.LAST_ERROR = {}
+    self.LAST_URL = None
 
   @staticmethod 
   def objectify(item, **kwargs):
@@ -94,12 +95,15 @@ class StackAPI(object):
 
   def fetch(self, url, **params):
     fields = StackAPI.getdefault(params, 'fields', ())   
+    if 'fields' in params:
+      del params['fields']
     if url in self.BACKOFF:
-      delay = time() - self.BACKOFF[url]
+      delay = self.BACKOFF[url] - time()
       if delay > 0.:
         sleep(delay)
     StackAPI.setdefault(params, 'site', self.SITE)
-    R = requests.get(url, params=params)    
+    R = requests.get(url, params=params)
+    self.LAST_URL = R.url
     R = json.loads(R.content)
     if 'error_id' in R:
       self.LAST_ERROR = StackAPI.objectify(R)
@@ -117,9 +121,9 @@ class StackAPI(object):
   
   def url_endpoint(self, *args):
     if self.IDS:
-      args = [ ';'.join(self.IDS) ]
-      args.extend(args)
-      self.IDS = []
+      _ = args[:]
+      args = [ _[0], ';'.join(map(str, self.IDS)) ]
+      args.extend(_[1:])
     return '%s/%s' % (self.API_BASEURL, '/'.join(args))
   
   def api_call(self, *endpoint, **params):
@@ -132,12 +136,13 @@ class StackAPI(object):
     return next(self.api_call('info', **params))
   
   def parameterize(self, call, params):
+    StackAPI.setdefault(params, 'page', 1)
     fields = (field for field in self.get_globals("global", call) if field in self.__PARAMS)
     params.update(dict([ (field, self.__PARAMS[field]) for field in fields ]))
     if 'ids' in params:
       self.IDS = params['ids']
       del params['ids']
-    StackAPI.setdefault(params, 'page', 1)
+    params.update(self.SORT)
     if call in [ 'posts', 'questions', 'answers' ]:
       StackAPI.setdefault(params, 'sort', 'activity')
       StackAPI.setdefault(params, 'order', 'desc')
@@ -189,5 +194,4 @@ class StackAPI(object):
       return True
     else:
       return self.HAS_MORE[signature]
-
  
