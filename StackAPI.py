@@ -41,8 +41,6 @@ class StackAPI(object):
       "fromdate", "todate", "min", "max", "order", "sort",
     ]
   }
-  AUTHENTICATED = [
-  ]
   def __init__(self, **kwargs):
     self.AUTH = {}
     self.SORT = {}
@@ -137,6 +135,7 @@ class StackAPI(object):
   
   def parameterize(self, call, params):
     StackAPI.setdefault(params, 'page', 1)
+    params.update(self.AUTH)
     fields = (field for field in self.get_globals("global", call) if field in self.__PARAMS)
     params.update(dict([ (field, self.__PARAMS[field]) for field in fields ]))
     if 'ids' in params:
