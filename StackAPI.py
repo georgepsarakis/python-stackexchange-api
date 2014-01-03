@@ -38,6 +38,7 @@ class StackAPI(object):
   }
   def __init__(self, **kwargs):
     self.AUTH = {}
+    self.SORT = {}
     if "site" in kwargs:
       self.SITE = kwargs['site']  
     self.set_auth(**kwargs)
@@ -86,6 +87,10 @@ class StackAPI(object):
       return imap(StackAPI.objectify, R['items'])
   
   def url_endpoint(self, *args):
+    if self.IDS:
+      args = [ ';'.join(self.IDS) ]
+      args.extend(args)
+      self.IDS = []
     return '%s/%s' % (self.API_BASEURL, '/'.join(args))
   
   def api_call(self, *endpoint, **params):
@@ -100,21 +105,51 @@ class StackAPI(object):
   def parameterize(self, call, params):
     fields = (field for field in self.get_globals("global", call) if field in self.__PARAMS)
     params.update(dict([ (field, self.__PARAMS[field]) for field in fields ]))
+    if 'ids' in params:
+      self.IDS = params['ids']
+      del params['ids']
+    self.setdefault(params, 'page', 1)
     if call in [ 'posts', 'questions', 'answers' ]:
-      self.setdefault(params, 'page', 1)
       self.setdefault(params, 'sort', 'activity')
+      self.setdefault(params, 'order', 'desc')
+    elif call in [ 'comments' ]:
+      self.setdefault(params, 'sort', 'creation')
       self.setdefault(params, 'order', 'desc')
   
   def get_globals(self, *args):
     return dict(chain([ self.FILTERS[key] for key in args ]))
 
+  def comments(self, **params):
+    params['method'] = 'comments'
+    return self.posts(**params)
+
+  def answers(self, **params):
+    params['method'] = 'answers'
+    return self.posts(**params)
+
+  def questions(self, **params):
+    params['method'] = 'questions'
+    return self.posts(**params)
+
   def posts(self, **params):
     self.parameterize('posts', params)
-    endpoint = self.url_endpoint('posts')
+    method = self.getdefault(params, 'method', 'posts')
+    endpoint = self.url_endpoint(method)
     while self.advance(endpoint, params):  
-      r = self.api_call('posts', **params)
+      r = self.api_call(method, **params)
       params['page'] += 1
       yield r
+  
+  def ids(self, id_list):
+    self.IDS = id_list
+    return self
+
+  def order(self, field="activity", order="desc"):
+    self.SORT = {
+      "sort"  : field,
+      "order" : order,
+    }
+    return self
 
   def advance(self, endpoint, params):
     signature = self.get_request_signature(endpoint, params)    
