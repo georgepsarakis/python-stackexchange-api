@@ -25,12 +25,23 @@ class StackAPI(object):
   QUOTA = None
   QUOTA_MAX = None
   DELAY = 0.5
-
+  SORTING = [ 
+    "activity", "creation", "votes" 
+    ]
+  FILTERS = {
+    "global" : [
+      "page", "pagesize",
+    ],
+    "posts" : [
+      "fromdate", "todate", "min", "max", "order", "sort",
+    ]
+  }
   def __init__(self, **kwargs):
     if "site" in kwargs:
       self.SITE = kwargs['site']  
     self.HAS_MORE = {}
     self.BACKOFF = {}
+    self.__PARAMS = {}
   
   @staticmethod 
   def objectify(item):
@@ -38,6 +49,12 @@ class StackAPI(object):
       if isinstance(v, dict):
         item[k] = StackAPI.objectify(v)
     return StackObject(item)      
+
+  def set_param(self, key, value):
+    self.__PARAMS[key] = value
+      
+  def get_param(self, key):
+    return self.getdefault(self.__PARAMS, key)
 
   def get_request_signature(self, url, params):
     return md5(url + str(params)).hexdigest()
@@ -63,19 +80,27 @@ class StackAPI(object):
   def url_endpoint(self, *args):
     return '%s/%s' % (self.API_BASEURL, '/'.join(args))
   
-  def api_call(self, endpoint, **params):
-    return self.fetch(self.url_endpoint(endpoint), **params)
+  def api_call(self, *endpoint, **params):
+    return self.fetch(self.url_endpoint(*endpoint), **params)
 
   def info(self, site=None):
     params = {}
     if not site is None:
       params['site'] = site
     return next(self.api_call('info', **params))
+  
+  def parameterize(self, call, params):
+    if call in [ 'posts', 'questions', 'answers' ]:
+      params.update(dict([ (field, self.__PARAMS[field]) for field in self.get_globals("global", "posts") if field in self.__PARAMS ]))
+      self.setdefault(params, 'page', 1)
+      self.setdefault(params, 'sort', 'activity')
+      self.setdefault(params, 'order', 'desc')
+  
+  def get_globals(self, *args):
+    return dict(chain([ self.FILTERS[key] for key in args ]))
 
   def posts(self, **params):
-    self.setdefault(params, 'page', 1)
-    self.setdefault(params, 'sort', 'activity')
-    self.setdefault(params, 'order', 'desc')
+    self.parameterize('posts', params)
     endpoint = self.url_endpoint('posts')
     while self.advance(endpoint, params):  
       r = self.api_call('posts', **params)
