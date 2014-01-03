@@ -15,7 +15,7 @@ except ImportError:
 class StackObject(dict):
   def __init__(self, attrs, **kwargs):
     if 'fields' in kwargs and kwargs['fields']:
-      attrs = dict([ (field, attrs[field]) for field in kwargs['fields'] ])
+      attrs = dict([ (field, attrs[field]) for field in kwargs['fields'] if field in attrs ])
     super(StackObject, self).__init__(attrs.items())
     self.__dict__.update(attrs) 
 
@@ -52,6 +52,8 @@ class StackAPI(object):
     self.HAS_MORE = {}
     self.BACKOFF = {}
     self.__PARAMS = {}
+    self.IDS = []
+    self.LAST_ERROR = {}
 
   @staticmethod 
   def objectify(item, **kwargs):
@@ -144,7 +146,7 @@ class StackAPI(object):
       StackAPI.setdefault(params, 'order', 'desc')
   
   def get_globals(self, *args):
-    return dict(chain([ self.FILTERS[key] for key in args ]))
+    return chain(*[ self.FILTERS[key] for key in args ])
 
   def comments(self, **params):
     params['method'] = 'comments'
@@ -177,6 +179,9 @@ class StackAPI(object):
       "order" : order,
     }
     return self
+  
+  def last_error(self):
+    return self.LAST_ERROR
 
   def advance(self, endpoint, params):
     signature = self.get_request_signature(endpoint, params)    
@@ -185,4 +190,4 @@ class StackAPI(object):
     else:
       return self.HAS_MORE[signature]
 
-      
+ 
