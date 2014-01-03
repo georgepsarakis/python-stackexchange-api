@@ -1,16 +1,21 @@
-#!/usr/bin/python
+from itertools import imap, chain
+from hashlib import md5
+from time import time, sleep
+from functools import partial
 import requests
 try:
   import simplejson as json
 except ImportError:
   import json
-from time import time, sleep
-from bs4 import BeautifulSoup as bs
-from itertools import imap, chain
-from hashlib import md5
+try:
+  from bs4 import BeautifulSoup as bs
+except ImportError:
+  bs = None
 
 class StackObject(dict):
-  def __init__(self, attrs):
+  def __init__(self, attrs, **kwargs):
+    if 'fields' in kwargs and kwargs['fields']:
+      attrs = dict([ (field, attrs[field]) for field in kwargs['fields'] ])
     super(StackObject, self).__init__(attrs.items())
     self.__dict__.update(attrs) 
 
@@ -36,6 +41,8 @@ class StackAPI(object):
       "fromdate", "todate", "min", "max", "order", "sort",
     ]
   }
+  AUTHENTICATED = [
+  ]
   def __init__(self, **kwargs):
     self.AUTH = {}
     self.SORT = {}
@@ -47,11 +54,26 @@ class StackAPI(object):
     self.__PARAMS = {}
 
   @staticmethod 
-  def objectify(item):
+  def objectify(item, **kwargs):
+    fields = StackAPI.getdefault(kwargs, 'fields', ())
     for k, v in item.iteritems():
       if isinstance(v, dict):
-        item[k] = StackAPI.objectify(v)
-    return StackObject(item)      
+        item[k] = StackAPI.objectify(v, fields=fields)
+    return StackObject(item, fields=fields)      
+  
+  @staticmethod
+  def getdefault(obj, key, default=None):
+    try:
+      return obj[key]
+    except KeyError:
+      return default
+  
+  @staticmethod
+  def setdefault(obj, key, default=None):
+    try:
+      obj[key]
+    except KeyError:
+      obj[key] = default
 
   def set_auth(self, **kwargs):
     if "key" in kwargs:
@@ -63,17 +85,18 @@ class StackAPI(object):
     self.__PARAMS[key] = value
       
   def get_param(self, key):
-    return self.getdefault(self.__PARAMS, key)
+    return StackAPI.getdefault(self.__PARAMS, key)
 
   def get_request_signature(self, url, params):
     return md5(url + str(params)).hexdigest()
 
   def fetch(self, url, **params):
+    fields = StackAPI.getdefault(params, 'fields', ())   
     if url in self.BACKOFF:
       delay = time() - self.BACKOFF[url]
       if delay > 0.:
         sleep(delay)
-    self.setdefault(params, 'site', self.SITE)
+    StackAPI.setdefault(params, 'site', self.SITE)
     R = requests.get(url, params=params)    
     R = json.loads(R.content)
     if 'error_id' in R:
@@ -83,8 +106,12 @@ class StackAPI(object):
       self.QUOTA = R['quota_remaining']
       self.QUOTA_MAX = R['quota_max']
       self.HAS_MORE[self.get_request_signature(url, params)] = R['has_more']
-      self.BACKOFF[url] = time() + self.getdefault(R, 'backoff', self.DELAY)
-      return imap(StackAPI.objectify, R['items'])
+      self.BACKOFF[url] = time() + StackAPI.getdefault(R, 'backoff', self.DELAY)
+      if fields:
+        objectify = partial(StackAPI.objectify, fields=fields)
+      else:
+        objectify = StackAPI.objectify
+      return imap(objectify, R['items'])
   
   def url_endpoint(self, *args):
     if self.IDS:
@@ -108,13 +135,13 @@ class StackAPI(object):
     if 'ids' in params:
       self.IDS = params['ids']
       del params['ids']
-    self.setdefault(params, 'page', 1)
+    StackAPI.setdefault(params, 'page', 1)
     if call in [ 'posts', 'questions', 'answers' ]:
-      self.setdefault(params, 'sort', 'activity')
-      self.setdefault(params, 'order', 'desc')
+      StackAPI.setdefault(params, 'sort', 'activity')
+      StackAPI.setdefault(params, 'order', 'desc')
     elif call in [ 'comments' ]:
-      self.setdefault(params, 'sort', 'creation')
-      self.setdefault(params, 'order', 'desc')
+      StackAPI.setdefault(params, 'sort', 'creation')
+      StackAPI.setdefault(params, 'order', 'desc')
   
   def get_globals(self, *args):
     return dict(chain([ self.FILTERS[key] for key in args ]))
@@ -133,7 +160,7 @@ class StackAPI(object):
 
   def posts(self, **params):
     self.parameterize('posts', params)
-    method = self.getdefault(params, 'method', 'posts')
+    method = StackAPI.getdefault(params, 'method', 'posts')
     endpoint = self.url_endpoint(method)
     while self.advance(endpoint, params):  
       r = self.api_call(method, **params)
@@ -158,15 +185,4 @@ class StackAPI(object):
     else:
       return self.HAS_MORE[signature]
 
-  def getdefault(self, obj, key, default=None):
-    try:
-      return obj[key]
-    except KeyError:
-      return default
-
-  def setdefault(self, obj, key, default=None):
-    try:
-      obj[key]
-    except KeyError:
-      obj[key] = default
       
