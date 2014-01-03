@@ -37,18 +37,26 @@ class StackAPI(object):
     ]
   }
   def __init__(self, **kwargs):
+    self.AUTH = {}
     if "site" in kwargs:
       self.SITE = kwargs['site']  
+    self.set_auth(**kwargs)
     self.HAS_MORE = {}
     self.BACKOFF = {}
     self.__PARAMS = {}
-  
+
   @staticmethod 
   def objectify(item):
     for k, v in item.iteritems():
       if isinstance(v, dict):
         item[k] = StackAPI.objectify(v)
     return StackObject(item)      
+
+  def set_auth(self, **kwargs):
+    if "key" in kwargs:
+      self.AUTH["key"] = kwargs["key"]
+    if "token" in kwargs:
+      self.AUTH["access_token"] = kwargs["token"]
 
   def set_param(self, key, value):
     self.__PARAMS[key] = value
@@ -90,8 +98,9 @@ class StackAPI(object):
     return next(self.api_call('info', **params))
   
   def parameterize(self, call, params):
+    fields = (field for field in self.get_globals("global", call) if field in self.__PARAMS)
+    params.update(dict([ (field, self.__PARAMS[field]) for field in fields ]))
     if call in [ 'posts', 'questions', 'answers' ]:
-      params.update(dict([ (field, self.__PARAMS[field]) for field in self.get_globals("global", "posts") if field in self.__PARAMS ]))
       self.setdefault(params, 'page', 1)
       self.setdefault(params, 'sort', 'activity')
       self.setdefault(params, 'order', 'desc')
