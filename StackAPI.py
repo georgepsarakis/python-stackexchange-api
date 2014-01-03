@@ -32,10 +32,11 @@ class StackAPI(object):
     self.HAS_MORE = {}
     self.BACKOFF = {}
   
-  def objectify(self, item):
+  @staticmethod 
+  def objectify(item):
     for k, v in item.iteritems():
       if isinstance(v, dict):
-        item[k] = self.objectify(v)
+        item[k] = StackAPI.objectify(v)
     return StackObject(item)      
 
   def get_request_signature(self, url, params):
@@ -46,22 +47,21 @@ class StackAPI(object):
       delay = time() - self.BACKOFF[url]
       if delay > 0.:
         sleep(delay)
-    if not 'site' in params:
-      params['site'] = self.SITE
+    self.setdefault(params, 'site', self.SITE)
     R = requests.get(url, params=params)    
     R = json.loads(R.content)
     if 'error_id' in R:
-      self.LAST_ERROR = self.objectify(R)
+      self.LAST_ERROR = StackAPI.objectify(R)
       return []
     else:
       self.QUOTA = R['quota_remaining']
       self.QUOTA_MAX = R['quota_max']
       self.HAS_MORE[self.get_request_signature(url, params)] = R['has_more']
       self.BACKOFF[url] = time() + self.getdefault(R, 'backoff', self.DELAY)
-      return imap(self.objectify, R['items'])
+      return imap(StackAPI.objectify, R['items'])
   
   def url_endpoint(self, *args):
-    return '/'.join(chain([ self.API_BASEURL ],  args))
+    return '%s/%s' % (self.API_BASEURL, '/'.join(args))
   
   def api_call(self, endpoint, **params):
     return self.fetch(self.url_endpoint(endpoint), **params)
@@ -71,6 +71,16 @@ class StackAPI(object):
     if not site is None:
       params['site'] = site
     return next(self.api_call('info', **params))
+
+  def posts(self, **params):
+    self.setdefault(params, 'page', 1)
+    self.setdefault(params, 'sort', 'activity')
+    self.setdefault(params, 'order', 'desc')
+    endpoint = self.url_endpoint('posts')
+    while self.advance(endpoint, params):  
+      r = self.api_call('posts', **params)
+      params['page'] += 1
+      yield r
 
   def advance(self, endpoint, params):
     signature = self.get_request_signature(endpoint, params)    
@@ -90,13 +100,4 @@ class StackAPI(object):
       obj[key]
     except KeyError:
       obj[key] = default
-
-  def posts(self, **params):
-    self.setdefault(params, 'page', 1)
-    self.setdefault(params, 'sort', 'activity')
-    self.setdefault(params, 'order', 'desc')
-    endpoint = self.url_endpoint('posts')
-    while self.advance(endpoint, params):  
-      r = self.api_call('posts', **params)
-      params['page'] += 1
-      yield r
+      
