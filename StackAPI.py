@@ -21,18 +21,14 @@ class StackObject(dict):
 
 class StackAPI(object):
   API_BASEURL = 'https://api.stackexchange.com/2.1'
-  CONTENT_SELECTORS = { 
-			'question' : "div#question div.post-text",
-			'answer'   : "div#answer-%([post_id)d div.post-text",
-			'comment'  : "div#comment-%(post_id)d div.comment-copy"
-		    }      
   SITE = "stackoverflow"
   QUOTA = None
   QUOTA_MAX = None
   DELAY = 0.5
-  SORTING = [ 
-    "activity", "creation", "votes" 
-    ]
+  SORTING = {
+    "posts"  : [ "activity", "creation", "votes" ],
+    "badges" : [ "rank", "name", "type" ],
+  }
   FILTERS = {
     "global" : [
       "page", "pagesize",
@@ -41,18 +37,25 @@ class StackAPI(object):
       "fromdate", "todate", "min", "max", "order", "sort",
     ]
   }
+  API_METHODS = {
+    "posts"     : True,
+    "answers"   : True,
+    "questions" : True,
+    "badges"    : True,
+    "comments"  : True,
+  }
   def __init__(self, **kwargs):
-    self.AUTH = {}
-    self.SORT = {}
     if "site" in kwargs:
       self.SITE = kwargs['site']  
-    self.set_auth(**kwargs)
+    self.__PARAMS = {}
+    self.AUTH = {}
+    self.SORT = {}
     self.HAS_MORE = {}
     self.BACKOFF = {}
-    self.__PARAMS = {}
     self.IDS = []
     self.LAST_ERROR = {}
     self.LAST_URL = None
+    self.set_auth(**kwargs)
 
   @staticmethod 
   def objectify(item, **kwargs):
@@ -118,13 +121,13 @@ class StackAPI(object):
       return imap(objectify, R['items'])
   
   def url_endpoint(self, *args):
-    if self.IDS:
-      _ = args[:]
-      args = [ _[0], ';'.join(map(str, self.IDS)) ]
-      args.extend(_[1:])
     return '%s/%s' % (self.API_BASEURL, '/'.join(args))
   
   def api_call(self, *endpoint, **params):
+    if self.IDS:
+      _ = endpoint[:]
+      endpoint = [ _[0], ';'.join(map(str, self.IDS)) ]
+      endpoint.extend(_[1:])
     return self.fetch(self.url_endpoint(*endpoint), **params)
 
   def info(self, site=None):
@@ -152,6 +155,15 @@ class StackAPI(object):
   def get_globals(self, *args):
     return chain(*[ self.FILTERS[key] for key in args ])
 
+  def __getattr__(self, name):    
+    if name in self.API_METHODS:
+      def wrapper(*args, **kwargs):
+        kwargs['method'] = name
+        return self.response(**kwargs)
+      return wrapper
+    else:
+      return None
+
   def comments(self, **params):
     params['method'] = 'comments'
     return self.posts(**params)
@@ -163,8 +175,15 @@ class StackAPI(object):
   def questions(self, **params):
     params['method'] = 'questions'
     return self.posts(**params)
-
+  
   def posts(self, **params):
+    params['method'] = 'posts'
+    return self.response(**params)
+
+  def response(self, **params):
+    if 'fields' in params and 'filter' in params:
+      if params['filter'] == 'withbody':
+        params['fields'].append('body')
     self.parameterize('posts', params)
     method = StackAPI.getdefault(params, 'method', 'posts')
     endpoint = self.url_endpoint(method)
