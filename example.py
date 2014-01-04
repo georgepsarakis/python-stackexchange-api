@@ -3,7 +3,7 @@ from StackAPI import StackAPI
 
 if __name__ == "__main__":
   api = StackAPI()
-
+  
   ''' Fetch site information '''
   info = api.info()
   print info.total_answers
@@ -27,3 +27,15 @@ if __name__ == "__main__":
     break
   print 'URL >> ', api.LAST_URL
   print "ERROR: ", api.last_error()
+
+  posts = api.answers(filter="withbody", fields=["link", "score"])
+  posts = next(posts)
+  for post in posts:
+    print post
+  
+  api.set_response_format("json")
+  tags = api.tags(pages=False)
+  print list(tags)
+  print 'URL >> ', api.LAST_URL
+  print "ERROR: ", api.last_error()
+

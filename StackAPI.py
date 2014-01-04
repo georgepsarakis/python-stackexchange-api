@@ -15,7 +15,7 @@ except ImportError:
 class StackObject(dict):
   def __init__(self, attrs, **kwargs):
     if 'fields' in kwargs and kwargs['fields']:
-      attrs = dict([ (field, attrs[field]) for field in kwargs['fields'] if field in attrs ])
+      attrs = StackAPI.field_filter(attrs, fields=kwargs['fields'])
     super(StackObject, self).__init__(attrs.items())
     self.__dict__.update(attrs) 
 
@@ -28,6 +28,7 @@ class StackAPI(object):
   SORTING = {
     "posts"  : [ "activity", "creation", "votes" ],
     "badges" : [ "rank", "name", "type" ],
+    "tags"   : [ "popular", "activity", "name" ],
   }
   FILTERS = {
     "global" : [
@@ -43,10 +44,19 @@ class StackAPI(object):
     "questions" : True,
     "badges"    : True,
     "comments"  : True,
+    "tags"      : True,
+    "users"     : True,
+    "errors"    : True,
+    "sites"     : True,
+    "info"      : True,
+  }
+  NO_PAGINATION_METHODS = {
+    "info"   : True,
+    "sites"  : True,
+    "errors" : True,
   }
   def __init__(self, **kwargs):
-    if "site" in kwargs:
-      self.SITE = kwargs['site']  
+    self.SITE = StackAPI.getdefault(kwargs, 'site', self.SITE)
     self.__PARAMS = {}
     self.AUTH = {}
     self.SORT = {}
@@ -55,8 +65,9 @@ class StackAPI(object):
     self.IDS = []
     self.LAST_ERROR = {}
     self.LAST_URL = None
+    self.RESPONSE_FORMAT = "object"
     self.set_auth(**kwargs)
-
+  
   @staticmethod 
   def objectify(item, **kwargs):
     fields = StackAPI.getdefault(kwargs, 'fields', ())
@@ -78,6 +89,32 @@ class StackAPI(object):
       obj[key]
     except KeyError:
       obj[key] = default
+
+  @staticmethod
+  def field_filter(obj, **kwargs):
+    if not 'fields' in kwargs:
+      return obj    
+    fields = kwargs['fields']
+    if fields is None or not isinstance(fields, list):
+      return obj
+    else:
+      return dict([ (field, obj[field]) for field in fields if field in obj ])
+
+  def __getattr__(self, name):    
+    if name in self.API_METHODS:
+      def wrapper(*args, **kwargs):
+        kwargs['method'] = name
+        return self.response(**kwargs)
+      return wrapper
+    else:
+      return None
+
+  def set_response_format(self, response_format):
+    if response_format in [ "json", "object" ]:
+      self.RESPONSE_FORMAT = response_format
+      return True
+    else:
+      return False
 
   def set_auth(self, **kwargs):
     if "key" in kwargs:
@@ -107,18 +144,29 @@ class StackAPI(object):
     self.LAST_URL = R.url
     R = json.loads(R.content)
     if 'error_id' in R:
-      self.LAST_ERROR = StackAPI.objectify(R)
+      R["url"] = self.LAST_URL
+      if self.RESPONSE_FORMAT == "object":
+        self.LAST_ERROR = StackAPI.objectify(R)
+      elif self.RESPONSE_FORMAT == "json":
+        self.LAST_ERROR = R
       return []
     else:
       self.QUOTA = R['quota_remaining']
       self.QUOTA_MAX = R['quota_max']
       self.HAS_MORE[self.get_request_signature(url, params)] = R['has_more']
       self.BACKOFF[url] = time() + StackAPI.getdefault(R, 'backoff', self.DELAY)
-      if fields:
-        objectify = partial(StackAPI.objectify, fields=fields)
-      else:
-        objectify = StackAPI.objectify
-      return imap(objectify, R['items'])
+      if self.RESPONSE_FORMAT == "object":
+        if fields:
+          objectify = partial(StackAPI.objectify, fields=fields)
+        else:
+          objectify = StackAPI.objectify
+        return imap(objectify, R['items'])
+      elif self.RESPONSE_FORMAT == "json":
+        if fields:
+          field_filter = partial(StackAPI.field_filter, fields=fields)
+        else:
+          field_filter = StackAPI.field_filter 
+        return imap(field_filter, R['items'])
   
   def url_endpoint(self, *args):
     return '%s/%s' % (self.API_BASEURL, '/'.join(args))
@@ -128,13 +176,10 @@ class StackAPI(object):
       _ = endpoint[:]
       endpoint = [ _[0], ';'.join(map(str, self.IDS)) ]
       endpoint.extend(_[1:])
+      self.IDS = []
+    if self.SORT:
+      self.SORT = {}
     return self.fetch(self.url_endpoint(*endpoint), **params)
-
-  def info(self, site=None):
-    params = {}
-    if not site is None:
-      params['site'] = site
-    return next(self.api_call('info', **params))
   
   def parameterize(self, call, params):
     StackAPI.setdefault(params, 'page', 1)
@@ -153,45 +198,44 @@ class StackAPI(object):
       StackAPI.setdefault(params, 'order', 'desc')
   
   def get_globals(self, *args):
-    return chain(*[ self.FILTERS[key] for key in args ])
-
-  def __getattr__(self, name):    
-    if name in self.API_METHODS:
-      def wrapper(*args, **kwargs):
-        kwargs['method'] = name
-        return self.response(**kwargs)
-      return wrapper
-    else:
-      return None
-
-  def comments(self, **params):
-    params['method'] = 'comments'
-    return self.posts(**params)
-
-  def answers(self, **params):
-    params['method'] = 'answers'
-    return self.posts(**params)
-
-  def questions(self, **params):
-    params['method'] = 'questions'
-    return self.posts(**params)
+    return chain(*[ self.FILTERS[key] for key in args if key in self.FILTERS ])
   
-  def posts(self, **params):
-    params['method'] = 'posts'
-    return self.response(**params)
+  def identity(self, obj):
+    return obj
 
-  def response(self, **params):
+  def response(self, **params):    
+    pagination = StackAPI.getdefault(params, 'pages', True)
+    if 'pages' in params:
+      del params['pages']
+    data = self.identity
     if 'fields' in params and 'filter' in params:
       if params['filter'] == 'withbody':
         params['fields'].append('body')
-    self.parameterize('posts', params)
-    method = StackAPI.getdefault(params, 'method', 'posts')
-    endpoint = self.url_endpoint(method)
+    method = StackAPI.getdefault(params, 'method', 'posts')    
+    if method in self.NO_PAGINATION_METHODS:
+      params['pagesize'] = 100
+      pagination = False
+      data = next
+    url = [ method ]
+    if 'url' in params:
+      if not isinstance(params['url'], list):
+        params['url'] = list(params['url'])
+      url.extend(params['url'])
+      del params['url']
+    self.parameterize(method, params)
+    del params['method']
+    if pagination:
+      return self.response_iterator(url, params)
+    else:
+      return data(self.api_call(*url, **params))
+  
+  def response_iterator(self, url, params):
+    endpoint = self.url_endpoint(url[0])    
     while self.advance(endpoint, params):  
-      r = self.api_call(method, **params)
+      r = self.api_call(*url, **params)
       params['page'] += 1
       yield r
-  
+ 
   def ids(self, id_list):
     self.IDS = id_list
     return self
@@ -203,13 +247,13 @@ class StackAPI(object):
     }
     return self
   
-  def last_error(self):
-    return self.LAST_ERROR
-
   def advance(self, endpoint, params):
     signature = self.get_request_signature(endpoint, params)    
     if not signature in self.HAS_MORE:
       return True
     else:
       return self.HAS_MORE[signature]
+
+  def last_error(self):
+    return self.LAST_ERROR
  
