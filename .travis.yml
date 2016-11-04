@@ -6,9 +6,11 @@ python:
   - "3.4"
   - "3.5"
 # command to install dependencies
-install: "pip install ."
+install:
+  - "pip install ."
+  - "pip install -r test-requirements.txt"
 # command to run tests
 script: 
-    - cd tests/unit && python -m unittest discover
-    - cd tests/integration && python -m unittest discover
-    - flake8 tests stackexchange setup.py
+  - 'cd tests/unit && python -m unittest discover && cd -'
+  - 'cd tests/integration && python -m unittest discover && cd -'
+  - 'flake8 tests stackexchange setup.py'
