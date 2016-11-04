@@ -69,6 +69,8 @@ class StackExchangeAPIRequest(object):
 
     def compile(self):
         parameters = {name: value for name, value in self._parameters}
+        if self._endpoint is None:
+            return None, None, parameters
         return self._endpoint.http_method, self._endpoint.path, parameters
 
     def using(self, endpoint):

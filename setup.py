@@ -10,6 +10,10 @@ with open('stackexchange/__init__.py', 'rb') as f:
         f.read().decode('utf-8')).group(1)))
 
 
+with open('test-requirements.txt', 'r') as f:
+    test_requirements = f.read().strip().split()
+
+
 setup(
     name="stackexchange",
     version=version,
@@ -19,8 +23,5 @@ setup(
         "requests==2.10.0"
     ],
     test_suite="tests",
-    tests_require=[
-        "mock==2.0.0",
-        "flake8==3.0.4"
-    ]
+    tests_require=test_requirements,
 )

@@ -30,7 +30,10 @@ class StackExchangeAPI(object):
 
     def _build_http_request(self, request, data=None):
         method, path, parameters = request.compile()
-        url = urlparse.urljoin(self._base_url, path.compile())
+        if path is None:
+            url = self._base_url
+        else:
+            url = urlparse.urljoin(self._base_url, path.compile())
         return Request(
             method=method,
             url=url,
@@ -39,22 +42,38 @@ class StackExchangeAPI(object):
             auth=self._auth
         )
 
+    def get_http_request(self, request):
+        """
+        :param StackExchangeAPIRequest request:
+        :rtype: requests.Request
+        """
+        return self._build_http_request(request)
+
+    def _should_backoff(self):
+        now = time()
+        should_wait = (
+            self._back_off_timestamp is not None and
+            now < self._back_off_timestamp
+        )
+        if should_wait:
+            wait = self._back_off_timestamp - now
+            sleep(wait)
+            return True
+        return False
+
     def fetch(self, request):
         """
         :param StackExchangeAPIRequest request:
         """
-        self._last_request = request
+        self._should_backoff()
         http_request = self._build_http_request(request)
-        prepared_request = http_request.prepare()
-        now = time()
-        if now < self._back_off_timestamp:
-            sleep(self._back_off_timestamp - now)
         with requests.Session() as session:
-            response = session.send(prepared_request)
+            response = session.send(http_request.prepare())
         self._back_off_timestamp = time()
         response = StackExchangeAPIResponse(request, response)
         if not response.is_error():
             self._back_off_timestamp += response.json.get('backoff', 0)
+        self._last_request = request
         self._last_response = response
         return response
 

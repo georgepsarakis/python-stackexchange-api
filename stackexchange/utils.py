@@ -1,4 +1,3 @@
-from copy import deepcopy, copy
 import json
 from collections import Mapping
 
@@ -21,6 +20,8 @@ class ModelSerializer(json.JSONEncoder):
 class Model(Mapping):
     def __init__(self, data):
         container = None
+        iterator = None
+
         if isinstance(data, list):
             iterator = enumerate(data)
             container = [None] * len(data)
