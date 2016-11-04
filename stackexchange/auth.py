@@ -12,7 +12,3 @@ class StackExchangeAPIAuth(AuthBase):
             'key': self._key,
             'access_token': self._access_token
         })
-
-
-
-

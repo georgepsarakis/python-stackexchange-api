@@ -63,4 +63,3 @@ class Questions(
 
     def related(self):
         return self.extend_path(position=3, name='related')
-

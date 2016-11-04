@@ -175,4 +175,3 @@ class StackExchangeAPIEndpoint(StackExchangeAPIPathContainer):
         """
         from stackexchange.http import StackExchangeAPIRequest
         return StackExchangeAPIRequest(self)
-
