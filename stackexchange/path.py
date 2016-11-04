@@ -1,6 +1,7 @@
 from functools import total_ordering
 from copy import copy
 import operator
+import six
 
 
 @total_ordering
@@ -48,12 +49,14 @@ class StackExchangeAPIPath(object):
     def _get_segment_sequence(self):
         sorted_segments = sorted(self.segments)
 
-        sequence = map(
-            operator.attrgetter('position'),
-            sorted_segments
+        sequence = list(
+            map(
+                operator.attrgetter('position'),
+                sorted_segments
+            )
         )
 
-        if sequence != range(1, len(sequence) + 1):
+        if sequence != list(six.moves.range(1, len(sequence) + 1)):
             raise ValueError
 
         path = []

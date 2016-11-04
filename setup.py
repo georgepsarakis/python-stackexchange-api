@@ -20,7 +20,8 @@ setup(
     description="StackExchange API Python Client",
     packages=find_packages(),
     install_requires=[
-        "requests==2.10.0"
+        "requests==2.10.0",
+        "six==1.10.0"
     ],
     test_suite="tests",
     tests_require=test_requirements,

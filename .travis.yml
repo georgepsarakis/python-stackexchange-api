@@ -1,6 +1,5 @@
 language: python
 python:
-  - "2.6"
   - "2.7"
   - "3.2"
   - "3.3"
@@ -10,5 +9,6 @@ python:
 install: "pip install --user ."
 # command to run tests
 script: 
-    - cd tests && python -m unittest discover
-    - flake8 tests stackexchange
+    - cd tests/unit && python -m unittest discover
+    - cd tests/integration && python -m unittest discover
+    - flake8 tests stackexchange setup.py

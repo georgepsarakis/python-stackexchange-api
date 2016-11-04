@@ -68,23 +68,3 @@ class Model(Mapping):
             container[index] = item
 
         return container
-
-
-if __name__ == "__main__":
-    a = {
-        'k1': {
-            'b1': [1, 2, 3]
-        }
-    }
-    model_a = Model(a)
-
-    print model_a
-    print model_a['k1']['b1']
-    b = [
-        {'a': {'b': 1, 'c': [1, 2]}}
-    ]
-    model_b = Model(b)
-    print model_b
-    print model_b[0]['a']['b']
-    print model_b.to_native()
-    print Model({'a': {'b': {'c': [1]}}}).to_native()

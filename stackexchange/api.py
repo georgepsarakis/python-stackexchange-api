@@ -1,8 +1,8 @@
 from time import time, sleep
-import urlparse
 import requests
 from requests import Request
-from http import StackExchangeAPIResponse
+from six.moves.urllib.parse import urljoin
+from .http import StackExchangeAPIResponse
 
 
 class StackExchangeAPI(object):
@@ -33,7 +33,7 @@ class StackExchangeAPI(object):
         if path is None:
             url = self._base_url
         else:
-            url = urlparse.urljoin(self._base_url, path.compile())
+            url = urljoin(self._base_url, path.compile())
         return Request(
             method=method,
             url=url,
@@ -89,5 +89,5 @@ class StackExchangeAPI(object):
         """
         :rtype: StackExchangeAPIRequest
         """
-        from http import StackExchangeAPIRequest
+        from .http import StackExchangeAPIRequest
         return StackExchangeAPIRequest(api=self)

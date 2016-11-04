@@ -160,10 +160,3 @@ class Users(StackExchangeAPIEndpoint, Filtered):
         """
         position = self._get_relative_position()
         return self.extend_path(name='top-question-tags', position=position)
-
-
-if __name__ == "__main__":
-    users = Users()
-    print users.filter(2).top_question_tags()
-    print users.me().top_question_tags()
-    print users.me().badges()

@@ -1,6 +1,6 @@
-from api import StackExchangeAPI
-from http import StackExchangeAPIRequest
-from auth import StackExchangeAPIAuth
+from .api import StackExchangeAPI
+from .http import StackExchangeAPIRequest
+from .auth import StackExchangeAPIAuth
 
 __all__ = [
     'StackExchangeAPI',

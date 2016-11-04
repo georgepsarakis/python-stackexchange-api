@@ -8,9 +8,3 @@ class Badges(StackExchangeAPIEndpoint, Filtered):
 
     def recipients(self):
         return self.extend_path(position=3, name='recipients')
-
-
-if __name__ == '__main__':
-    badges = Badges()
-    badge = badges.filter(2, 3)
-    print badge.recipients()

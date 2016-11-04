@@ -1,7 +1,8 @@
 from calendar import timegm
 from copy import copy, deepcopy
 from uuid import uuid4
-from utils import Model, serialize
+import six
+from .utils import Model, serialize
 
 
 class StackExchangeAPIRequest(object):
@@ -42,6 +43,9 @@ class StackExchangeAPIRequest(object):
             parameter_dict[name] = initial
         parameter_dict[name] = initial + amount
         return self.filter_by(name, parameter_dict[name])
+
+    def site(self, name):
+        return self.filter_by('site', name)
 
     def page(self, number):
         return self.filter_by('page', number)
@@ -90,7 +94,7 @@ class StackExchangeAPIRequest(object):
     def __getitem__(self, item):
         if not isinstance(item, slice):
             raise TypeError
-        for page in xrange(item.start, item.stop, item.step or 1):
+        for page in six.moves.range(item.start, item.stop, item.step or 1):
             yield self.filter_by(name='page', value=page).fetch()
 
     def __iter__(self):
