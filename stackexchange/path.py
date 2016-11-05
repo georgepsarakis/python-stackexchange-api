@@ -165,9 +165,23 @@ class StackExchangeAPIURLPath(object):
 
 
 class StackExchangeAPIEndpoint(StackExchangeAPIURLPath):
+    def __new__(cls, *args, **kwargs):
+        if cls is StackExchangeAPIEndpoint:
+            raise NotImplementedError(
+                'Cannot directly instantiate {} class'.format(
+                    cls.__name__
+                )
+            )
+        return super(StackExchangeAPIEndpoint, cls).__new__(
+            cls,
+            *args,
+            **kwargs
+        )
+
     def request(self):
         """
         :rtype: StackExchangeAPIRequest
         """
         from stackexchange.http import StackExchangeAPIRequest
         return StackExchangeAPIRequest(self)
+

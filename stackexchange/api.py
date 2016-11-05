@@ -72,7 +72,7 @@ class StackExchangeAPI(object):
         self._back_off_timestamp = time()
         response = StackExchangeAPIResponse(request, response)
         if not response.is_error():
-            self._back_off_timestamp += response.json.get('backoff', 0)
+            self._back_off_timestamp += response.data.get('backoff', 0)
         self._last_request = request
         self._last_response = response
         return response
@@ -82,7 +82,7 @@ class StackExchangeAPI(object):
         :rtype: StackExchangeAPIResponse
         """
         return self.fetch(
-            request=self._last_request.with_next(name='page')
+            request=self._last_request.next_(name='page')
         )
 
     def request(self):

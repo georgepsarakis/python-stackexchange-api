@@ -1,14 +1,18 @@
 from calendar import timegm
-from copy import copy, deepcopy
+from copy import copy
+from inspect import isclass
 from uuid import uuid4
 import six
 from .utils import Model, serialize
+from .errors import StackExchangeAPIError
 
 
 class StackExchangeAPIRequest(object):
     def __init__(self, endpoint=None, api=None):
         self._api = api
         self._parameters = []
+        if isclass(endpoint):
+            endpoint = endpoint()
         self._endpoint = endpoint
 
     def __repr__(self):
@@ -37,7 +41,7 @@ class StackExchangeAPIRequest(object):
         self._parameters.append((name, value))
         return copy(self)
 
-    def with_next(self, name, amount=1, initial=1):
+    def next_(self, name, amount=1, initial=1):
         parameter_dict = dict(self._parameters)
         if name not in parameter_dict:
             parameter_dict[name] = initial
@@ -82,6 +86,8 @@ class StackExchangeAPIRequest(object):
         :rtype: StackExchangeAPIRequest
         """
         new_instance = copy(self)
+        if isclass(endpoint):
+            endpoint = endpoint()
         new_instance._endpoint = endpoint
         return new_instance
 
@@ -103,16 +109,19 @@ class StackExchangeAPIRequest(object):
         while response.has_more() or initial_iteration:
             initial_iteration = False
             yield response
-            response = self.with_next('page').fetch()
+            response = self.next_('page').fetch()
 
 
 class StackExchangeAPIResponse(object):
-    def __init__(self, request, response):
+    def __init__(self, request, response, raise_on_error=False):
         self._request = request
         self._response = response
         self._status_code = self._response.status_code
         self._json_content = response.json()
+        self._raise_on_error = raise_on_error
         self.data = Model(self._json_content)
+        if self.is_error() and raise_on_error:
+            raise StackExchangeAPIError(response=self)
 
     @property
     def request(self):
@@ -122,25 +131,23 @@ class StackExchangeAPIResponse(object):
         return self._request
 
     def is_error(self):
-        return 'error_id' in self.json
+        return 'error_id' in self.data
 
     def has_more(self):
-        response_data = self.json
-        return 'has_more' in response_data and response_data['has_more']
+        return 'has_more' in self.data and self.data['has_more']
 
     @property
     def items(self):
-        return self.json.get('items', list())
+        return self.data.get('items', list())
 
-    @property
-    def json(self):
-        return deepcopy(self._json_content)
+    def to_json(self):
+        return serialize(self.data)
 
     def __repr__(self):
         return '<{}@{}:({})>'.format(
             self.__class__.__name__,
             str(hex(id(self))),
-            serialize(self.json, indent=4)
+            self.to_json()
         )
 
     __str__ = __repr__

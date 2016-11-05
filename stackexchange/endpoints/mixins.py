@@ -1,10 +1,19 @@
 from stackexchange.path import StackExchangeAPIURLPath
 
 
-# noinspection PyMissingConstructor
 class StackExchangeAPIURLPathMixinBase(StackExchangeAPIURLPath):
-    def __init__(self, *args, **kwargs):
-        self._path = None
+    def __new__(cls, *args, **kwargs):
+        if cls is StackExchangeAPIURLPathMixinBase:
+            raise NotImplementedError(
+                'Cannot directly instantiate {} class'.format(
+                    cls.__name__
+                )
+            )
+        return super(StackExchangeAPIURLPathMixinBase, cls).__new__(
+            cls,
+            *args,
+            **kwargs
+        )
 
 
 class Undo(StackExchangeAPIURLPathMixinBase):
