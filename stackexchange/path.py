@@ -116,7 +116,7 @@ class StackExchangeAPIPath(object):
         return '/{}'.format(self.compile())
 
 
-class StackExchangeAPIPathContainer(object):
+class StackExchangeAPIURLPath(object):
     def __init__(self, path=None):
         self._path = path or StackExchangeAPIPath()
         if path is None:
@@ -130,7 +130,7 @@ class StackExchangeAPIPathContainer(object):
 
     def extend_path(self, *args, **kwargs):
         """
-        :rtype: StackExchangeAPIPathContainer
+        :rtype: StackExchangeAPIURLPath
         """
         new_instance = copy(self)
         new_instance._path = new_instance.path.add_segment(*args, **kwargs)
@@ -164,11 +164,7 @@ class StackExchangeAPIPathContainer(object):
     __repr__ = __str__
 
 
-class StackExchangeAPISubEndpoint(StackExchangeAPIPathContainer):
-    pass
-
-
-class StackExchangeAPIEndpoint(StackExchangeAPIPathContainer):
+class StackExchangeAPIEndpoint(StackExchangeAPIURLPath):
     def request(self):
         """
         :rtype: StackExchangeAPIRequest

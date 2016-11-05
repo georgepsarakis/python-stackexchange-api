@@ -1,5 +1,5 @@
 from stackexchange.path import StackExchangeAPIEndpoint
-from stackexchange.endpoints.misc import Filtered
+from stackexchange.endpoints.mixins import Filtered
 
 
 class Errors(StackExchangeAPIEndpoint, Filtered):

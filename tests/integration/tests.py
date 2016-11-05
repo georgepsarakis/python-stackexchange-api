@@ -12,7 +12,7 @@ class IntegrationTests(unittest.TestCase):
         self.so_request = self.api.request().site('stackoverflow')
 
     def test_fetch_answer_comments(self):
-        comments_endpoint = Answers().filter(40314706).comments()
+        comments_endpoint = Answers().in_(40314706).comments()
         response = self.so_request.using(comments_endpoint).fetch()
         self.assertGreater(len(response.json['items']), 0)
 

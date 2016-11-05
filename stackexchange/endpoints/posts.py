@@ -1,5 +1,5 @@
 from stackexchange.path import StackExchangeAPIEndpoint
-from stackexchange.endpoints.misc import Filtered, Comments
+from stackexchange.endpoints.mixins import Filtered, Comments
 
 
 class Posts(StackExchangeAPIEndpoint, Filtered, Comments):

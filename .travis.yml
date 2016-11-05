@@ -10,7 +10,7 @@ install:
   - "pip install ."
   - "pip install -r test-requirements.txt"
 # command to run tests
-script: 
-  - 'cd tests/unit && python -m unittest discover --verbose && cd -'
-  - 'cd tests/integration && python -m unittest discover --verbose && cd -'
-  - 'flake8 tests stackexchange setup.py'
+script:
+  - 'cd $TRAVIS_BUILD_DIR && flake8 tests stackexchange setup.py'
+  - 'cd $TRAVIS_BUILD_DIR && cd tests/unit && python -m unittest discover --verbose'
+  - 'cd $TRAVIS_BUILD_DIR && cd tests/integration && python -m unittest discover --verbose'

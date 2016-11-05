@@ -1,5 +1,6 @@
 import json
 from collections import Mapping
+import six
 
 
 def serialize(obj, **kwargs):
@@ -60,7 +61,7 @@ class Model(Mapping):
             iterator = enumerate(self.__data)
         else:
             container = {}
-            iterator = self.__data.iteritems()
+            iterator = six.iteritems(self.__data)
 
         for index, item in iterator:
             if isinstance(item, Model):

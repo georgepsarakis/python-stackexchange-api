@@ -1,6 +1,6 @@
-from stackexchange.api import StackExchangeAPIEndpoint
-from stackexchange.endpoints.misc import Flags, CreateUpdateDelete, DownVote, \
-    UpVote, Accept, Favorite, Filtered
+from stackexchange.path import StackExchangeAPIEndpoint
+from stackexchange.endpoints.mixins import Flags, CreateUpdateDelete, \
+    Vote, Accept, Favorite, Filtered
 
 
 class Questions(
@@ -9,8 +9,7 @@ class Questions(
     Flags,
     CreateUpdateDelete,
     Accept,
-    DownVote,
-    UpVote,
+    Vote,
     Favorite
 ):
     def featured(self):

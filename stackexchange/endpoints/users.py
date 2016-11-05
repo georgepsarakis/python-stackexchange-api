@@ -1,5 +1,5 @@
-from stackexchange.api import StackExchangeAPIEndpoint
-from stackexchange.endpoints.misc import Filtered
+from stackexchange.path import StackExchangeAPIEndpoint
+from stackexchange.endpoints.mixins import Filtered
 from stackexchange.errors import StackExchangeInvalidEndpointPathError
 
 

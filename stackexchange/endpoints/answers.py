@@ -1,10 +1,9 @@
 from stackexchange.path import StackExchangeAPIEndpoint
-from stackexchange.endpoints.misc import (
+from stackexchange.endpoints.mixins import (
     Flags,
     Accept,
     CreateUpdateDelete,
-    UpVote,
-    DownVote,
+    Vote,
     Comments,
     Filtered
 )
@@ -15,8 +14,7 @@ class Answers(
     Flags,
     Accept,
     CreateUpdateDelete,
-    UpVote,
-    DownVote,
+    Vote,
     Comments,
     Filtered
 ):
