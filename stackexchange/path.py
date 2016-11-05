@@ -184,4 +184,3 @@ class StackExchangeAPIEndpoint(StackExchangeAPIURLPath):
         """
         from stackexchange.http import StackExchangeAPIRequest
         return StackExchangeAPIRequest(self)
-
