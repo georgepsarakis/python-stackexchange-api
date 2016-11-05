@@ -1,16 +1,15 @@
+sudo: false
 language: python
 python:
-  - "2.7"
-  - "3.2"
-  - "3.3"
-  - "3.4"
   - "3.5"
-# command to install dependencies
+env:
+    - TOX_ENV=py27
+    - TOX_ENV=py32
+    - TOX_ENV=py33
+    - TOX_ENV=py34
+    - TOX_ENV=py35
+    - TOX_ENV=flake8
 install:
-  - "pip install ."
-  - "pip install -r test-requirements.txt"
-# command to run tests
+    - pip install tox
 script:
-  - 'cd $TRAVIS_BUILD_DIR && flake8 tests stackexchange setup.py'
-  - 'cd $TRAVIS_BUILD_DIR && cd tests/unit && python -m unittest discover --verbose'
-  - 'cd $TRAVIS_BUILD_DIR && cd tests/integration && python -m unittest discover --verbose'
+    - tox -e $TOX_ENV
