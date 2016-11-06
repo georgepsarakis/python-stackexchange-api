@@ -21,7 +21,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         "requests==2.10.0",
-        "six==1.10.0"
+        "six==1.10.0",
+        "retrying==1.3.3"
     ],
     test_suite="tests",
     tests_require=test_requirements,

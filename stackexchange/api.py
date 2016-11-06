@@ -1,8 +1,19 @@
 from time import time, sleep
 import requests
 from requests import Request
+from retrying import retry
 from six.moves.urllib.parse import urljoin
 from .http import StackExchangeAPIResponse
+
+
+class BackoffStrategy(object):
+    @staticmethod
+    def retry_on_fetch_error(exception):
+        if not hasattr(exception, 'response'):
+            return False
+        if exception.response.data['error_id'] == 502:
+            return True
+        return False
 
 
 class StackExchangeAPI(object):
@@ -70,6 +81,10 @@ class StackExchangeAPI(object):
             return True
         return False
 
+    @retry(
+        retry_on_exception=BackoffStrategy.retry_on_fetch_error,
+        wait_random_min=10**4
+    )
     def fetch(self, request, request_kwargs=None, session=None):
         """
         :param StackExchangeAPIRequest request:
