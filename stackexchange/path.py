@@ -172,11 +172,7 @@ class StackExchangeAPIEndpoint(StackExchangeAPIURLPath):
                     cls.__name__
                 )
             )
-        return super(StackExchangeAPIEndpoint, cls).__new__(
-            cls,
-            *args,
-            **kwargs
-        )
+        return super(StackExchangeAPIEndpoint, cls).__new__(cls)
 
     def request(self):
         """

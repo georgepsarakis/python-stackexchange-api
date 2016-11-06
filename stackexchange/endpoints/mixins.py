@@ -9,11 +9,7 @@ class StackExchangeAPIURLPathMixinBase(StackExchangeAPIURLPath):
                     cls.__name__
                 )
             )
-        return super(StackExchangeAPIURLPathMixinBase, cls).__new__(
-            cls,
-            *args,
-            **kwargs
-        )
+        return super(StackExchangeAPIURLPathMixinBase, cls).__new__(cls)
 
 
 class Undo(StackExchangeAPIURLPathMixinBase):
