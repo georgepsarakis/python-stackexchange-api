@@ -1,51 +1,57 @@
-# Python Library for the StackExchange API
+# Python Wrapper for the StackExchange API
 
-A Python library for easy access to the [StackExchangeAPI v2.1](http://api.stackexchange.com/).
+A Python library for easy access to the [StackExchange REST API v2](http://api.stackexchange.com/).
 
-The goal is to recreate the API methods as class methods and filters as keyworded arguments so that someone just needs to familiarize with the API not the library itself to the possible extent.
+## Installation
 
-### StackObject: dictionary & object access
+Install with `pip`:
 
-Returned object (StackObject) properties can be accessed as dictionary entries (`post["post_id"]`) or as object properties (`post.post_id`). 
+```
+virtualenv env
+source env/bin/activate
+pip install .
+# Verify
+python -c 'import stackexchange'
+```
 
-You can also specify which fields to include in the result, if you do not need the entire object (this will consume less memory as well).
+## Usage
 
-### Iterate over multiple pages
+```python
+import warnings
+warnings.filterwarnings("ignore")
+from datetime import datetime, timedelta
+import stackexchange
+from stackexchange.api import StackExchangeAPI
+from stackexchange.endpoints import Answers, Info
 
-The `"items"` array of the API response becomes an iterator using [itertools.imap](http://docs.python.org/2/library/itertools.html#itertools.imap) and JSON objects are converted to StackObject instances on demand.
+headers = {
+    'User-Agent': 'Python-API-v{}'.format(stackexchange.__version__)
+}
 
-Most API calls return an iterator which enables access to the next pages as long as you continue iterating.
+api = StackExchangeAPI(http_request_kwargs={'headers': headers})
+stack_overflow_request = api.request().where(site='stackoverflow', pagesize=5)
 
-### What about throttling?
+now = datetime.utcnow()
+stack_overflow_request = stack_overflow_request.where(
+    from_date=now - timedelta(hours=2),
+    to_date=now
+)
 
-API calls automatically respect the `backoff` parameter (if contained in the response) for each method separately.
+answers_response = stack_overflow_request.using(Answers).fetch()
+print answers_response
 
-## Methods
+site_http_request = api.get_http_request(stack_overflow_request.using(Info))
+print site_http_request.method, site_http_request.url, \
+      site_http_request.headers, site_http_request.params
 
-### set_param(param, value)
+# Get the StackOverflow site information
+stackoverflow_site_info = stack_overflow_request.using(Info).fetch()
+print stackoverflow_site_info
+print "StackOverflow Total Answers: {}".format(
+    stackoverflow_site_info.items[0]['total_answers']
+)
 
-Set a global parameter (such as `pagesize`) to include in every request.
-
-### set_auth(key=APP_KEY, token=ACCESS_TOKEN)
-
-Apply these authentication credentials in every API call.
-
-### ids(LIST_OF_IDS)
-
-Sets the set of IDS for the next call. This is a convenience method and allows chaining (see the example.py sample code).
-
-### posts
-
-Returns a collection of posts.
-
-### answers
-
-Returns a collection of answers.
-
-### questions
-
-Returns a collection of questions.
-
-### comments
-
-Returns a collection of comments.
+# Get the first 3 pages of answers
+for response in stack_overflow_request.using(Answers).pagesize(1)[1:4]:
+    print response
+```
