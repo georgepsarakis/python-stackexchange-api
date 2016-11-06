@@ -1,4 +1,6 @@
-# Python Wrapper for the StackExchange API
+# stackexchange - Python Wrapper for the StackExchange API
+
+[![Build Status](https://travis-ci.org/georgepsarakis/python-stackexchange-api.svg?branch=master)](https://travis-ci.org/georgepsarakis/python-stackexchange-api)
 
 A Python library for easy access to the [StackExchange REST API v2](http://api.stackexchange.com/).
 
@@ -51,7 +53,7 @@ print "StackOverflow Total Answers: {}".format(
     stackoverflow_site_info.items[0]['total_answers']
 )
 
-# Get the first 3 pages of answers
+# Get the first 3 pages of answers - throttling is handled automatically
 for response in stack_overflow_request.using(Answers).pagesize(1)[1:4]:
     print response
 ```
