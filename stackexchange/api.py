@@ -97,6 +97,7 @@ class StackExchangeAPI(object):
             params=parameters,
             auth=self._auth
         )
+        request_kwargs.update(self._default_request_kwargs)
         request_kwargs.update(kwargs)
         return Request(**request_kwargs)
 
