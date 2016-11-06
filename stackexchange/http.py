@@ -91,11 +91,11 @@ class StackExchangeAPIRequest(object):
         new_instance._endpoint = endpoint
         return new_instance
 
-    def fetch(self):
+    def fetch(self, **kwargs):
         """
         :rtype: StackExchangeAPIResponse
         """
-        return self._api.fetch(self)
+        return self._api.fetch(self, **kwargs)
 
     def __getitem__(self, item):
         if not isinstance(item, slice):
@@ -113,7 +113,7 @@ class StackExchangeAPIRequest(object):
 
 
 class StackExchangeAPIResponse(object):
-    def __init__(self, request, response, raise_on_error=False):
+    def __init__(self, request, response, raise_on_error=True):
         self._request = request
         self._response = response
         self._status_code = self._response.status_code
