@@ -121,7 +121,7 @@ class StackExchangeAPIResponse(object):
         self._raise_on_error = raise_on_error
         self.data = Model(self._json_content)
         if self.is_error() and raise_on_error:
-            raise StackExchangeAPIError(response=self)
+            raise StackExchangeAPIError(message=self.to_json(), response=self)
 
     @property
     def request(self):

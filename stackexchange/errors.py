@@ -7,5 +7,6 @@ class StackExchangeInvalidEndpointPathError(Exception):
 
 
 class StackExchangeAPIError(Exception):
-    def __init__(self, response):
-        self.response = response
+    def __init__(self, message, response):
+        self.response = response                
+        super(StackExchangeAPIError, self).__init__(message)
