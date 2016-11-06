@@ -1,3 +1,4 @@
+from inspect import isclass
 from time import time, sleep
 import requests
 from requests import Request
@@ -7,13 +8,41 @@ from .http import StackExchangeAPIResponse
 
 
 class BackoffStrategy(object):
+    def __init__(self, **kwargs):
+        default_retry_parameters = dict(
+            wait_random_min=10**4,
+            wait_random_max=3*10**4,
+            stop_max_attempt_number=10
+        )
+        default_retry_parameters.update(kwargs)
+        self._retry_kwargs = default_retry_parameters
+        self._next_request_min_timestamp = time()
+
     @staticmethod
-    def retry_on_fetch_error(exception):
+    def _retry_on_throttle_error(exception):
         if not hasattr(exception, 'response'):
             return False
         if exception.response.data['error_id'] == 502:
             return True
         return False
+
+    def set_next_request_minimum_time(self, backoff_interval):
+        self._next_request_min_timestamp = time() + backoff_interval
+
+    def wait(self):
+        now = time()
+        should_wait = now < self._next_request_min_timestamp
+        if should_wait:
+            wait = self._next_request_min_timestamp - now
+            sleep(wait)
+            return True
+        return False
+
+    def retryable(self, function):
+        return retry(
+            retry_on_exception=BackoffStrategy._retry_on_throttle_error,
+            **self._retry_kwargs
+        )(function)
 
 
 class StackExchangeAPI(object):
@@ -25,7 +54,8 @@ class StackExchangeAPI(object):
         version=None,
         auth=None,
         http_session=None,
-        request_kwargs=None
+        http_request_kwargs=None,
+        throttle_strategy=BackoffStrategy
     ):
         self._last_response = None
         self._version = version or self._AVAILABLE_VERSIONS[-1]
@@ -33,8 +63,16 @@ class StackExchangeAPI(object):
         self._last_request = None
         self._back_off_timestamp = None
         self._auth = auth
-        self._default_request_kwargs = request_kwargs or {}
+        self._default_request_kwargs = http_request_kwargs or {}
         self._default_http_session = http_session or None
+        if isclass(throttle_strategy):
+            throttle_strategy = throttle_strategy()
+        self._back_off_strategy = throttle_strategy
+        self.fetch = self._back_off_strategy.retryable(self.fetch)
+
+    @property
+    def backoff_strategy(self):
+        return self._back_off_strategy
 
     @property
     def version(self):
@@ -69,24 +107,6 @@ class StackExchangeAPI(object):
         """
         return self._build_http_request(request)
 
-    def _should_backoff(self):
-        now = time()
-        should_wait = (
-            self._back_off_timestamp is not None and
-            now < self._back_off_timestamp
-        )
-        if should_wait:
-            wait = self._back_off_timestamp - now
-            sleep(wait)
-            return True
-        return False
-
-    @retry(
-        retry_on_exception=BackoffStrategy.retry_on_fetch_error,
-        wait_random_min=10**4,
-        wait_random_max=3*10**4,
-        stop_max_delay=6*10**4
-    )
     def fetch(self, request, request_kwargs=None, session=None):
         """
         :param StackExchangeAPIRequest request:
@@ -96,16 +116,19 @@ class StackExchangeAPI(object):
         request_kwargs = default_request_kwargs
         session = session or self._default_http_session
 
-        self._should_backoff()
+        self.backoff_strategy.wait()
         http_request = self._build_http_request(request, **request_kwargs)
+
         if session is None:
             with requests.Session() as session:
                 http_response = session.send(http_request.prepare())
         else:
             http_response = session.send(http_request.prepare())
-        self._back_off_timestamp = time()
+
         response = StackExchangeAPIResponse(request, http_response)
-        self._back_off_timestamp += response.data.get('backoff', 0)
+        backoff_interval = response.data.get('backoff', 0)
+
+        self.backoff_strategy.set_next_request_minimum_time(backoff_interval)
         self._last_request = request
         self._last_response = response
         return response
