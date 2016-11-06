@@ -83,7 +83,9 @@ class StackExchangeAPI(object):
 
     @retry(
         retry_on_exception=BackoffStrategy.retry_on_fetch_error,
-        wait_random_min=10**4
+        wait_random_min=10**4,
+        wait_random_max=3*10**4,
+        stop_max_delay=6*10**4
     )
     def fetch(self, request, request_kwargs=None, session=None):
         """
