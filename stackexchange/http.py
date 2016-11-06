@@ -41,6 +41,12 @@ class StackExchangeAPIRequest(object):
         self._parameters.append((name, value))
         return copy(self)
 
+    def where(self, **kwargs):
+        instance = self
+        for name, value in six.iteritems(kwargs):
+            instance = instance.filter_by(name=name, value=value)
+        return instance
+
     def next_(self, name, amount=1, initial=1):
         parameter_dict = dict(self._parameters)
         if name not in parameter_dict:
