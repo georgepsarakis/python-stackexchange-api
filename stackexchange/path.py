@@ -1,11 +1,11 @@
-from functools import total_ordering
 from copy import copy
-import operator
+from functools import total_ordering
+
 import six
 
 
 @total_ordering
-class StackExchangeAPIPathSegment(object):
+class StackExchangeAPIPathLevel(object):
     def __init__(self, name, position, writable=False):
         self.__name = name
         self.__position = position
@@ -24,7 +24,7 @@ class StackExchangeAPIPathSegment(object):
         return self.__writable
 
     def to_tuple(self):
-        return self.name, self.position, self.writable
+        return self.position, self.name, self.writable
 
     def __eq__(self, other):
         return self.position == other.position
@@ -33,107 +33,141 @@ class StackExchangeAPIPathSegment(object):
         return self.position >= other.position
 
     def __hash__(self):
-        return hash(self.to_tuple())
+        return hash(self.position)
 
     def __repr__(self):
         return str(self.to_tuple())
+    __str__ = __repr__
 
 
 class StackExchangeAPIPath(object):
-    def __init__(self, segments=None):
-        if segments is None:
-            self._segments = set()
-        else:
-            self._segments = set(segments)
+    def __init__(self, levels=None):
+        """
+        :param list[StackExchangeAPIPathLevel] levels:
+        :return:
+        """
+        self._levels = set(levels or [])
 
-    def _get_segment_sequence(self):
-        sorted_segments = sorted(self.segments)
-
-        sequence = list(
-            map(
-                operator.attrgetter('position'),
-                sorted_segments
-            )
-        )
+    def _get_level_sequence(self):
+        sorted_levels = sorted(self.levels)
+        sequence = [level.position for level in sorted_levels]
 
         if sequence != list(six.moves.range(1, len(sequence) + 1)):
-            raise ValueError
+            raise ValueError(
+                'API URL Path sequence has gaps: {}'.format(sequence)
+            )
 
-        path = []
-        for segment in sorted_segments:
-            if len(path) < segment.position:
-                path.append(segment.name)
-            else:
-                path[segment.position - 1] = segment.name
-        return path
+        return [
+            level.name
+            for level in sorted_levels
+        ]
 
     def compile(self):
-        path = self._get_segment_sequence()
-        return '/'.join(path)
+        return '/'.join(self._get_level_sequence())
 
     @property
-    def segments(self):
-        return frozenset(self._segments)
+    def levels(self):
+        """
+        :rtype: set[StackExchangeAPIPathLevel]
+        """
+        return frozenset(self._levels)
 
     @property
-    def last_segment(self):
-        return self._get_segment_sequence()[-1]
+    def sorted_levels(self):
+        """
+        :rtype: list[StackExchangeAPIPathLevel]
+        """
+        return sorted(self._levels)
 
     @property
     def writable(self):
-        return any(map(operator.attrgetter('writable'), self.segments))
+        """
+        :rtype: bool
+        """
+        return any(level.writable for level in self.levels)
+
+    @property
+    def last(self):
+        return self.sorted_levels[-1]
+
+    def endswith(self, name):
+        return self.last.name == name
 
     def __copy__(self):
-        return self.__class__(self.segments)
+        return self.__class__(self.levels)
 
     def __add__(self, other):
         return self.__class__(
-            other.segments.union(self.segments)
+            other.segments.union(self.levels)
         )
 
     def __iadd__(self, other):
-        self._segments.union(other.segments)
+        self._levels.union(other.levels)
         return self
 
-    def add_segment(self, position, name, writable=False):
-        if position is None:
-            if self._segments:
-                sorted_segments = sorted(self._segments, reverse=True)
-                max_position = sorted_segments[0].position
-                position = max_position + 1
-            else:
-                position = 1
+    def add(self, name, offset=None, writable=False):
+        """
+        Add a new path level.
+        :param name:
+        :param offset:
+        :param writable:
+        :return:
+        """
+        levels = name.split('/')
+        if offset is None:
+            offset = 0
+            if self._levels:
+                offset = max(self.levels).position
+            offset += 1
 
-        new_segment = StackExchangeAPIPathSegment(name, position, writable)
-        for segment in self.segments:
-            if segment >= new_segment:
-                self._segments.discard(segment)
-
-        self._segments.add(new_segment)
+        for name in levels:
+            self._levels.add(
+                StackExchangeAPIPathLevel(
+                    name=name,
+                    position=offset,
+                    writable=writable
+                )
+            )
         return self
 
     def __repr__(self):
         return '/{}'.format(self.compile())
+    __str__ = __repr__
 
 
-class StackExchangeAPIURLPath(object):
+class StackExchangeAPIEndpoint(object):
     def __init__(self, path=None):
+        """
+        :param StackExchangeAPIPath|None path: the URL path for this endpoint.
+        :return:
+        """
         self._path = path or StackExchangeAPIPath()
         if path is None:
-            self._path = self._path.add_segment(
-                1,
-                self.__class__.__name__.lower()
+            self._path = self._path.add(
+                offset=1,
+                name=self.__class__.__name__.lower()
             )
+
+    def request(self):
+        """
+        :rtype: StackExchangeAPIRequest
+        """
+        from stackexchange.http import StackExchangeAPIRequest
+        return StackExchangeAPIRequest(self)
 
     def __copy__(self):
         return self.__class__(copy(self._path))
 
-    def extend_path(self, *args, **kwargs):
+    def extend_with(self, name, offset=None, writable=False):
         """
-        :rtype: StackExchangeAPIURLPath
+        :rtype: StackExchangeAPIEndpoint
         """
         new_instance = copy(self)
-        new_instance._path = new_instance.path.add_segment(*args, **kwargs)
+        new_instance._path = new_instance.path.add(
+            name=name,
+            offset=offset,
+            writable=writable
+        )
         return new_instance
 
     @property
@@ -153,6 +187,15 @@ class StackExchangeAPIURLPath(object):
         """
         return self._path
 
+    @path.setter
+    def path(self, value):
+        """
+        :param StackExchangeAPIPath value:
+        :return:
+        """
+        value.compile()
+        self._path = value
+
     def __str__(self):
         return '<{}@{}: [{} {}]>'.format(
             self.__class__.__name__,
@@ -162,21 +205,3 @@ class StackExchangeAPIURLPath(object):
         )
 
     __repr__ = __str__
-
-
-class StackExchangeAPIEndpoint(StackExchangeAPIURLPath):
-    def __new__(cls, *args, **kwargs):
-        if cls is StackExchangeAPIEndpoint:
-            raise NotImplementedError(
-                'Cannot directly instantiate {} class'.format(
-                    cls.__name__
-                )
-            )
-        return super(StackExchangeAPIEndpoint, cls).__new__(cls)
-
-    def request(self):
-        """
-        :rtype: StackExchangeAPIRequest
-        """
-        from stackexchange.http import StackExchangeAPIRequest
-        return StackExchangeAPIRequest(self)

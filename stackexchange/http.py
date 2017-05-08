@@ -15,14 +15,6 @@ class StackExchangeAPIRequest(object):
             endpoint = endpoint()
         self._endpoint = endpoint
 
-    def __repr__(self):
-        return '<{}:{} [{}]/[{}]>'.format(
-            self.__class__.__name__,
-            str(hex(id(self))),
-            self._endpoint,
-            self.parameters
-        )
-
     @property
     def parameters(self):
         return dict(self._parameters)
@@ -109,25 +101,42 @@ class StackExchangeAPIRequest(object):
         for page in six.moves.range(item.start, item.stop, item.step or 1):
             yield self.filter_by(name='page', value=page).fetch()
 
-    def __iter__(self):
-        initial_iteration = True
-        response = self.fetch()
-        while response.has_more() or initial_iteration:
-            initial_iteration = False
-            yield response
-            response = self.next_('page').fetch()
+    def __repr__(self):
+        return '<{}:{} [{}]/[{}]>'.format(
+            self.__class__.__name__,
+            str(hex(id(self))),
+            self._endpoint,
+            self.parameters
+        )
 
 
 class StackExchangeAPIResponse(object):
     def __init__(self, request, response, raise_on_error=True):
         self._request = request
         self._response = response
-        self._status_code = self._response.status_code
         self._json_content = response.json()
         self._raise_on_error = raise_on_error
         self.data = Model(self._json_content)
         if self.is_error() and raise_on_error:
-            raise StackExchangeAPIError(message=self.to_json(), response=self)
+            raise StackExchangeAPIError(message=self.json, response=self)
+
+    @property
+    def http_response(self):
+        return self._response
+
+    @property
+    def items(self):
+        """
+        :rtype: list[dict]
+        """
+        return self.data.get('items', list())
+
+    @property
+    def json(self):
+        """
+        :rtype: dict[str]
+        """
+        return serialize(self.data)
 
     @property
     def request(self):
@@ -137,23 +146,21 @@ class StackExchangeAPIResponse(object):
         return self._request
 
     def is_error(self):
+        """
+        :rtype: bool
+        """
         return 'error_id' in self.data
 
     def has_more(self):
+        """
+        :rtype: bool
+        """
         return 'has_more' in self.data and self.data['has_more']
-
-    @property
-    def items(self):
-        return self.data.get('items', list())
-
-    def to_json(self):
-        return serialize(self.data)
 
     def __repr__(self):
         return '<{}@{}:({})>'.format(
             self.__class__.__name__,
             str(hex(id(self))),
-            self.to_json()
+            self.json
         )
-
     __str__ = __repr__

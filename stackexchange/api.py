@@ -1,10 +1,11 @@
+from functools import wraps
 from inspect import isclass
 from time import time, sleep
 import requests
 from requests import Request
 from retrying import retry
 from six.moves.urllib.parse import urljoin
-from .http import StackExchangeAPIResponse
+from stackexchange.http import StackExchangeAPIResponse
 
 
 class BackoffStrategy(object):
@@ -29,7 +30,7 @@ class BackoffStrategy(object):
     def set_next_request_minimum_time(self, backoff_interval):
         self._next_request_min_timestamp = time() + backoff_interval
 
-    def wait(self):
+    def maybe_wait(self):
         now = time()
         should_wait = now < self._next_request_min_timestamp
         if should_wait:
@@ -39,10 +40,30 @@ class BackoffStrategy(object):
         return False
 
     def retryable(self, function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            self.maybe_wait()
+            response = function(*args, **kwargs)
+            backoff_interval = response.data.get('backoff', 0)
+            self.set_next_request_minimum_time(backoff_interval)
+            return response
         return retry(
             retry_on_exception=BackoffStrategy._retry_on_throttle_error,
             **self._retry_kwargs
-        )(function)
+        )(wrapper)
+
+
+class Paginator(object):
+    def __init__(self, request):
+        self._request = request
+
+    def __iter__(self):
+        initial_iteration = True
+        response = self._request.fetch()
+        while response.has_more() or initial_iteration:
+            yield self._request.fetch()
+            initial_iteration = False
+            self._request = self._request.next_('page')
 
 
 class StackExchangeAPI(object):
@@ -85,7 +106,7 @@ class StackExchangeAPI(object):
         self._version = value
         self._base_url = '{}/{}'.format(self._BASE_URL, self._version)
 
-    def _build_http_request(self, request, **kwargs):
+    def _prepare_http_request(self, request, **kwargs):
         method, path, parameters = request.compile()
         if path is None:
             url = self._base_url
@@ -101,51 +122,29 @@ class StackExchangeAPI(object):
         request_kwargs.update(kwargs)
         return Request(**request_kwargs)
 
-    def get_http_request(self, request):
-        """
-        :param StackExchangeAPIRequest request:
-        :rtype: requests.Request
-        """
-        return self._build_http_request(request)
-
     def fetch(self, request, request_kwargs=None, session=None):
         """
         :param StackExchangeAPIRequest request:
         """
-        default_request_kwargs = self._default_request_kwargs.copy()
-        default_request_kwargs.update(request_kwargs or {})
-        request_kwargs = default_request_kwargs
+        current_request_kwargs = self._default_request_kwargs.copy()
+        current_request_kwargs.update(request_kwargs or {})
         session = session or self._default_http_session
 
-        self.backoff_strategy.wait()
-        http_request = self._build_http_request(request, **request_kwargs)
-
-        if session is None:
-            with requests.Session() as session:
-                http_response = session.send(http_request.prepare())
-        else:
-            http_response = session.send(http_request.prepare())
-
-        response = StackExchangeAPIResponse(request, http_response)
-        backoff_interval = response.data.get('backoff', 0)
-
-        self.backoff_strategy.set_next_request_minimum_time(backoff_interval)
-        self._last_request = request
-        self._last_response = response
-        return response
-
-    def fetch_next_page(self, **kwargs):
-        """
-        :rtype: StackExchangeAPIResponse
-        """
-        return self.fetch(
-            request=self._last_request.next_(name='page'),
-            **kwargs
+        http_request = self._prepare_http_request(
+            request,
+            **current_request_kwargs
         )
+
+        with session or requests.Session() as session:
+            api_response = session.send(http_request.prepare())
+
+        response = StackExchangeAPIResponse(request, api_response)
+        self._last_request = request
+        return response
 
     def request(self):
         """
         :rtype: StackExchangeAPIRequest
         """
-        from .http import StackExchangeAPIRequest
+        from stackexchange.http import StackExchangeAPIRequest
         return StackExchangeAPIRequest(api=self)

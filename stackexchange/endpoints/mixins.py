@@ -1,76 +1,81 @@
-from stackexchange.path import StackExchangeAPIURLPath
+from stackexchange.path import StackExchangeAPIEndpoint
 
 
-class StackExchangeAPIURLPathMixinBase(StackExchangeAPIURLPath):
+class StackExchangeAPIPartialEndpointMixinBase(StackExchangeAPIEndpoint):
     def __new__(cls, *args, **kwargs):
-        if cls is StackExchangeAPIURLPathMixinBase:
+        if cls is StackExchangeAPIPartialEndpointMixinBase:
             raise NotImplementedError(
-                'Cannot directly instantiate {} class'.format(
+                'Cannot directly instantiate {} class.'.format(
                     cls.__name__
                 )
             )
-        return super(StackExchangeAPIURLPathMixinBase, cls).__new__(cls)
+        return super(
+            StackExchangeAPIPartialEndpointMixinBase,
+            cls
+        ).__new__(cls, *args, **kwargs)
 
 
-class Undo(StackExchangeAPIURLPathMixinBase):
+class Undoable(StackExchangeAPIPartialEndpointMixinBase):
     def undo(self, name, reverse=False):
         path = name
         if reverse:
             path += '/undo'
-        return self.extend_path(name=path, position=3, writable=True)
+        return self.extend_with(name=path, offset=3, writable=True)
 
 
-class Comments(StackExchangeAPIURLPathMixinBase):
+class Comments(StackExchangeAPIPartialEndpointMixinBase):
     def comments(self, **kwargs):
         parameters = {
             'name': 'comments',
-            'position': 3
+            'offset': 3
         }
         parameters.update(kwargs)
-        return self.extend_path(**parameters)
+        return self.extend_with(**parameters)
 
 
-class Filtered(StackExchangeAPIURLPathMixinBase):
+class Filtered(StackExchangeAPIPartialEndpointMixinBase):
     def in_(self, *items, **kwargs):
         """
         Provide item filtering for ids, tags, access tokens etc
         """
-        items = map(str, items)
-        return self.extend_path(position=2, name=','.join(items), **kwargs)
+        items = map(str, items or kwargs.get('items', []))
+        writable = kwargs.get('writable', False)
+        return self.extend_with(name=','.join(items), offset=2,
+                                writable=writable)
 
 
-class Vote(Undo):
+class Vote(Undoable):
     def up_vote(self, undo=False):
-        return self.undo('upvote', reverse=undo)
+        return self.undo(name='upvote', reverse=undo)
 
     def down_vote(self, undo=False):
-        return self.undo('downvote', reverse=undo)
+        return self.undo(name='downvote', reverse=undo)
 
 
-class CreateUpdateDelete(StackExchangeAPIURLPathMixinBase):
+class CreateUpdateDelete(StackExchangeAPIPartialEndpointMixinBase):
     def add(self):
-        return self.extend_path(position=4, name='add', writable=True)
+        return self.extend_with(name='add', offset=4, writable=True)
 
     def edit(self):
-        return self.extend_path(position=3, name='edit', writable=True)
+        return self.extend_with(name='edit', offset=3, writable=True)
 
     def delete(self):
-        return self.extend_path(position=3, name='delete', writable=True)
+        return self.extend_with(name='delete', offset=3, writable=True)
 
 
-class Accept(Undo):
+class Accept(Undoable):
     def accept(self, undo=False):
         return self.undo('accept', reverse=undo)
 
 
-class Flags(StackExchangeAPIURLPathMixinBase):
+class Flags(StackExchangeAPIPartialEndpointMixinBase):
     def add(self):
-        return self.extend_path(position=3, name='flags/add', writable=True)
+        return self.extend_with(name='flags/add', offset=3, writable=True)
 
     def options(self):
-        return self.extend_path(position=3, name='flags/options')
+        return self.extend_with(name='flags/options', offset=3)
 
 
-class Favorite(Undo):
+class Favorite(Undoable):
     def favorite(self, undo=False):
         self.undo('favorite', reverse=undo)

@@ -1,6 +1,5 @@
-from stackexchange.path import StackExchangeAPIEndpoint
 from stackexchange.endpoints.mixins import Filtered
 
 
-class Errors(StackExchangeAPIEndpoint, Filtered):
+class Errors(Filtered):
     pass

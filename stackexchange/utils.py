@@ -1,5 +1,6 @@
-import json
 from collections import Mapping
+import json
+
 import six
 
 
@@ -20,6 +21,22 @@ class ModelSerializer(json.JSONEncoder):
 
 class Model(Mapping):
     def __init__(self, data):
+        self.__data = self._transform(data, self._transform_to_model)
+
+    @staticmethod
+    def _transform_to_model(value):
+        if isinstance(value, (list, dict)):
+            value = Model(value)
+        return value
+
+    @staticmethod
+    def _transform_to_native(value):
+        if isinstance(value, Model):
+            value = value.to_native()
+        return value
+
+    @staticmethod
+    def _transform(data, value_function):
         container = None
         iterator = None
 
@@ -27,16 +44,18 @@ class Model(Mapping):
             iterator = enumerate(data)
             container = [None] * len(data)
         elif isinstance(data, dict):
-            iterator = data.items()
+            iterator = six.iteritems(data)
             container = {}
 
         if container is not None:
             for key, value in iterator:
-                if isinstance(value, (list, dict)):
-                    value = Model(value)
-                container[key] = value
+                container[key] = value_function(value)
+            return container
+        else:
+            return data
 
-        self.__data = container
+    def to_native(self):
+        return self._transform(self.__data, self._transform_to_native)
 
     def __getitem__(self, key):
         return self.__data[key]
@@ -53,19 +72,3 @@ class Model(Mapping):
             str(hex(id(self))),
             serialize(self.to_native())
         )
-
-    def to_native(self):
-
-        if isinstance(self.__data, list):
-            container = [None] * len(self.__data)
-            iterator = enumerate(self.__data)
-        else:
-            container = {}
-            iterator = six.iteritems(self.__data)
-
-        for index, item in iterator:
-            if isinstance(item, Model):
-                item = item.to_native()
-            container[index] = item
-
-        return container

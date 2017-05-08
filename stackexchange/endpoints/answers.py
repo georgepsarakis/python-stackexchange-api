@@ -1,4 +1,3 @@
-from stackexchange.path import StackExchangeAPIEndpoint
 from stackexchange.endpoints.mixins import (
     Flags,
     Accept,
@@ -10,7 +9,6 @@ from stackexchange.endpoints.mixins import (
 
 
 class Answers(
-    StackExchangeAPIEndpoint,
     Flags,
     Accept,
     CreateUpdateDelete,
@@ -19,4 +17,4 @@ class Answers(
     Filtered
 ):
     def questions(self):
-        return self.extend_path(name='questions', position=3)
+        return self.extend_with(name='questions', offset=3)

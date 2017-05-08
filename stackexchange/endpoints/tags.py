@@ -1,36 +1,35 @@
-from stackexchange.path import StackExchangeAPIEndpoint
 from stackexchange.endpoints.mixins import Filtered
 
 
-class Tags(StackExchangeAPIEndpoint, Filtered):
+class Tags(Filtered):
     def info(self):
-        return self.extend_path(name='info', position=3)
+        return self.extend_with(name='info', offset=3)
 
     def faq(self):
-        return self.extend_path(name='faq', position=3)
+        return self.extend_with(name='faq', offset=3)
 
     def related(self):
-        return self.extend_path(name='related', position=3)
+        return self.extend_with(name='related', offset=3)
 
     def wikis(self):
-        return self.extend_path(name='wikis', position=3)
+        return self.extend_with(name='wikis', offset=3)
 
     def top_answerers(self, period):
         name = 'top-answerers/{}'.format(period)
-        return self.extend_path(name=name, position=3)
+        return self.extend_with(name=name, offset=3)
 
     def top_askers(self, period):
         name = 'top-askers/{}'.format(period)
-        return self.extend_path(name=name, position=3)
+        return self.extend_with(name=name, offset=3)
 
     def moderator_only(self):
-        return self.extend_path(name='moderator-only', position=2)
+        return self.extend_with(name='moderator-only', offset=2)
 
     def required(self):
-        return self.extend_path(name='required', position=2)
+        return self.extend_with(name='required', offset=2)
 
     def synonyms(self):
-        if self.path.last_segment == 'tags':
-            return self.extend_path(name='synonyms', position=2)
+        if self.path.endswith('tags'):
+            return self.extend_with(name='synonyms', offset=2)
         else:
-            return self.extend_path(name='synonyms', position=3)
+            return self.extend_with(name='synonyms', offset=3)
