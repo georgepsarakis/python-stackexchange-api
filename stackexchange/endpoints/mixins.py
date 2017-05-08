@@ -1,18 +1,27 @@
+import six
+
 from stackexchange.path import StackExchangeAPIEndpoint
 
 
 class StackExchangeAPIPartialEndpointMixinBase(StackExchangeAPIEndpoint):
     def __new__(cls, *args, **kwargs):
         if cls is StackExchangeAPIPartialEndpointMixinBase:
-            raise NotImplementedError(
+            raise TypeError(
                 'Cannot directly instantiate {} class.'.format(
                     cls.__name__
                 )
             )
-        return super(
-            StackExchangeAPIPartialEndpointMixinBase,
-            cls
-        ).__new__(cls, *args, **kwargs)
+
+        if six.PY3:
+            return super(
+                StackExchangeAPIPartialEndpointMixinBase,
+                cls
+            ).__new__(cls)
+        else:
+            return super(
+                StackExchangeAPIPartialEndpointMixinBase,
+                cls
+            ).__new__(cls, *args, **kwargs)
 
 
 class Undoable(StackExchangeAPIPartialEndpointMixinBase):

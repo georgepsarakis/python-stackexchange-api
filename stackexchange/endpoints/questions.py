@@ -1,4 +1,3 @@
-from stackexchange.path import StackExchangeAPIEndpoint
 from stackexchange.endpoints.mixins import Flags, CreateUpdateDelete, \
     Vote, Accept, Favorite, Filtered
 
